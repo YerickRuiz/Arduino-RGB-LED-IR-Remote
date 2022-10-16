@@ -1,13 +1,5 @@
 #include "IRremote.h"
 
-int pin_receiver = 11;
-int pin_red_led = 10;
-int pin_green_led = 6;
-int pin_blue_led = 9;
-int red_value = 128;
-int green_value = 128;
-int blue_value = 128;
-
 typedef enum {
   ONLY_RED,
   ONLY_GREEN,
@@ -19,15 +11,54 @@ typedef enum {
   FADING
 } rgb_led_mode_t;
 
-rgb_led_mode_t led_state = ONLY_RED;
+const int led_change_intensity = 32;
+int pin_receiver = 11;
+int pin_red_led = 10;
+int pin_green_led = 6;
+int pin_blue_led = 9;
+int red_value = 128;
+int green_value = 128;
+int blue_value = 128;
 
 bool is_led_red_on = true;
 bool is_led_green_on = true;
 bool is_led_blue_on = true;
 
+rgb_led_mode_t led_state = ONLY_RED;
+
 IRrecv irrecv(pin_receiver);
 decode_results results;
 
+uint8_t calculate_brightness_limits(int led_value, int intensity_change) {
+  uint8_t result = 0;
+  int temp_intensity = led_value + intensity_change;
+
+  if (temp_intensity < 0) {
+    result = 0;
+  } else if (temp_intensity > 255) {
+    result = 255;
+  } else {
+    result = temp_intensity;
+  }
+
+  return result;
+}
+void change_brightness(int intensity_change) {
+  if (is_led_red_on == true) {
+    red_value = calculate_brightness_limits(red_value, intensity_change);
+  }
+  if (is_led_blue_on == true) {
+    blue_value = calculate_brightness_limits(blue_value, intensity_change);
+  }
+  if (is_led_green_on == true) {
+    green_value = calculate_brightness_limits(green_value, intensity_change);
+  }
+  Serial.print(red_value);
+  Serial.print(",");
+  Serial.print(green_value);
+  Serial.print(",");
+  Serial.println(blue_value);
+}
 void translateIR() {
   switch (results.value) {
     case 0xFFA25D:
@@ -117,48 +148,35 @@ void translateIR() {
       break;
     case 0xFF629D:
       Serial.println("VOL+");
-      if (is_led_red_on == true && red_value < 230) {
-        red_value = red_value + 25;
-      }
-      if (is_led_blue_on == true && green_value < 230) {
-        blue_value = blue_value + 25;
-      }
-      if (is_led_green_on == true && blue_value < 230) {
-        green_value = green_value + 25;
-      }
-      Serial.print(red_value);
-      Serial.print(",");
-      Serial.print(green_value);
-      Serial.print(",");
-      Serial.println(blue_value);
+      change_brightness(led_change_intensity);
       break;
     case 0xFFA857:
       Serial.println("VOL-");
-      Serial.print(red_value);
-      Serial.print(",");
-      Serial.print(green_value);
-      Serial.print(",");
-      Serial.println(blue_value);
-      if (is_led_red_on == true && red_value > 25) {
-        red_value = red_value - 25;
-      }
-      if (is_led_blue_on == true && blue_value > 25) {
-        blue_value = blue_value - 25;
-      }
-      if (is_led_green_on == true && green_value > 25) {
-        green_value = green_value - 25;
-      }
-      Serial.print(red_value);
-      Serial.print(",");
-      Serial.print(green_value);
-      Serial.print(",");
-      Serial.println(blue_value);
+      change_brightness(-led_change_intensity);
       break;
     default:
       Serial.println(" other button : ");
       Serial.println(results.value);
   }
   delay(100);
+}
+
+void control_leds() {
+  if (is_led_red_on == true) {
+    analogWrite(pin_red_led, red_value);
+  } else {
+    analogWrite(pin_red_led, 0);
+  }
+  if (is_led_green_on == true) {
+    analogWrite(pin_green_led, green_value);
+  } else {
+    analogWrite(pin_green_led, 0);
+  }
+  if (is_led_blue_on == true) {
+    analogWrite(pin_blue_led, blue_value);
+  } else {
+    analogWrite(pin_blue_led, 0);
+  }
 }
 
 void setup() {
@@ -173,26 +191,5 @@ void loop() {
     irrecv.resume();
   }
   // Control LED
-  if(is_led_red_on == true)
-  {
-    analogWrite(pin_red_led, red_value);
-  }else
-  {
-    analogWrite(pin_red_led, 0);
-  }
-  if(is_led_green_on == true)
-  {
-    analogWrite(pin_green_led, green_value);
-  }else
-  {
-    analogWrite(pin_green_led, 0);
-  }
-  if(is_led_blue_on == true)
-  {
-    analogWrite(pin_blue_led, blue_value);
-  }else
-  {
-    analogWrite(pin_blue_led, 0);
-  }
-  
+  control_leds();
 }
