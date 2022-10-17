@@ -19,3 +19,7 @@ Control RGB led with infrared remote.
 - Only magenta
 - Only white
 - Fading (Changes slowly through all the colors)
+
+## Schematic
+ 
+<img src="docs/images/Arduino-RGB-LED-IR-Remote-finished_bb.png" alt="Controller Image" width="600"/>
